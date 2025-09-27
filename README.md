@@ -1,8 +1,11 @@
 # 🎮 Twin Shield
+https://abhinavmadke2008.itch.io/twin-shield
 
 A fast-paced **2-player retro defense game** built using **HTML, CSS, and JavaScript (Canvas API)** with neon CRT effects, XP upgrades, shields, and audio support.
 
 ---
+
+You can play it on this link: https://abhinavmadke2008.itch.io/twin-shield
 
 ## 🚀 Features
 
