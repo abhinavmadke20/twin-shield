@@ -1,4 +1,4 @@
-# 🎮 Retro Defense Game
+# 🎮 Twin Shield
 
 A fast-paced **2-player retro defense game** built using **HTML, CSS, and JavaScript (Canvas API)** with neon CRT effects, XP upgrades, shields, and audio support.
 
