@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retro Defense Game</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+        }
+
+        #gameContainer {
+            position: relative;
+            border: 6px solid #333;
+            border-radius: 15px;
+            background: radial-gradient(ellipse at center, #1a1a1a 0%, #000 100%);
+            box-shadow: 
+                0 0 30px rgba(138, 43, 226, 0.4),
+                inset 0 0 30px rgba(138, 43, 226, 0.1);
+        }
+
+        #gameCanvas {
+            display: block;
+            background: #000;
+            border-radius: 9px;
+            /* Enhanced CRT TV effect */
+            filter: 
+                contrast(1.3) 
+                brightness(1.1) 
+                saturate(1.4)
+                drop-shadow(0 0 10px rgba(0, 255, 255, 0.3));
+            box-shadow: inset 0 0 100px rgba(0, 255, 255, 0.05);
+        }
+
+        /* Stronger CRT scanlines */
+        #gameCanvas::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 1px,
+                rgba(0, 255, 255, 0.03) 1px,
+                rgba(0, 255, 255, 0.03) 3px
+            );
+            pointer-events: none;
+            border-radius: 9px;
+        }
+
+        #modal {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            color: #00ffff;
+            padding: 40px;
+            border: 3px solid #00ffff;
+            border-radius: 15px;
+            text-align: center;
+            font-size: 22px;
+            font-weight: bold;
+            box-shadow: 
+                0 0 40px rgba(0, 255, 255, 0.8),
+                inset 0 0 20px rgba(0, 255, 255, 0.1);
+            display: none;
+            z-index: 100;
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
+        }
+
+        .modal-button {
+            background: linear-gradient(45deg, #8A2BE2, #00ffff);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            margin: 20px 15px 0 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 18px;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            text-shadow: 0 0 5px rgba(0, 0, 0, 0.8);
+            transition: all 0.3s ease;
+        }
+
+        .modal-button:hover {
+            background: linear-gradient(45deg, #9370DB, #40e0d0);
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.6);
+            transform: scale(1.05);
+        }
+
+        #controls {
+            position: absolute;
+            bottom: -90px;
+            left: 0;
+            right: 0;
+            color: #00ffff;
+            text-align: center;
+            font-size: 14px;
+            line-height: 1.6;
+            text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
+        }
+
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            color: #ff4444;
+            padding: 50px;
+            border: 3px solid #ff4444;
+            border-radius: 15px;
+            text-align: center;
+            font-size: 28px;
+            font-weight: bold;
+            box-shadow: 
+                0 0 40px rgba(255, 68, 68, 0.8),
+                inset 0 0 20px rgba(255, 68, 68, 0.1);
+            display: none;
+            z-index: 200;
+            text-shadow: 0 0 15px rgba(255, 68, 68, 0.8);
+        }
+
+        #sacrificeDialog {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            color: #ff8800;
+            padding: 40px;
+            border: 3px solid #ff8800;
+            border-radius: 15px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            box-shadow: 
+                0 0 40px rgba(255, 136, 0, 0.8),
+                inset 0 0 20px rgba(255, 136, 0, 0.1);
+            display: none;
+            z-index: 250;
+            text-shadow: 0 0 15px rgba(255, 136, 0, 0.8);
+            animation: sacrificePulse 2s ease-in-out;
+        }
+
+        @keyframes sacrificePulse {
+            0%, 100% { 
+                transform: translate(-50%, -50%) scale(1);
+                box-shadow: 
+                    0 0 40px rgba(255, 136, 0, 0.8),
+                    inset 0 0 20px rgba(255, 136, 0, 0.1);
+            }
+            50% { 
+                transform: translate(-50%, -50%) scale(1.05);
+                box-shadow: 
+                    0 0 60px rgba(255, 136, 0, 1),
+                    inset 0 0 30px rgba(255, 136, 0, 0.2);
+            }
+        }
+
+        .glow-text {
+            position: absolute;
+            top: 30%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #00ffff;
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            z-index: 150;
+            pointer-events: none;
+            text-shadow: 
+                0 0 10px rgba(0, 255, 255, 1),
+                0 0 20px rgba(0, 255, 255, 0.8),
+                0 0 30px rgba(0, 255, 255, 0.6);
+            animation: pulseGlow 2s ease-in-out;
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { 
+                opacity: 1;
+                text-shadow: 
+                    0 0 10px rgba(0, 255, 255, 1),
+                    0 0 20px rgba(0, 255, 255, 0.8),
+                    0 0 30px rgba(0, 255, 255, 0.6);
+            }
+            50% { 
+                opacity: 0.7;
+                text-shadow: 
+                    0 0 20px rgba(0, 255, 255, 1),
+                    0 0 30px rgba(0, 255, 255, 0.9),
+                    0 0 40px rgba(0, 255, 255, 0.8);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div id="modal">
+            <div id="modalText">⚡ UPGRADE TO SHIELD? ⚡</div>
+            <button class="modal-button" id="yesBtn">YES</button>
+            <button class="modal-button" id="noBtn">NO</button>
+        </div>
+        <div id="gameOver">
+            <div>💀 GAME OVER! 💀</div>
+            <div style="font-size: 18px; margin-top: 25px;">Press [R] to restart</div>
+        </div>
+        <div id="sacrificeDialog">
+            <div>⚡ YOU SACRIFICED PLAYER 2! ⚡</div>
+            <div style="font-size: 18px; margin-top: 20px; color: #ffaa00;">Power upgrade activated...</div>
+        </div>
+        <div id="controls">
+            🎮 Player 1: [A][D] to move, [W] to shoot | Player 2: [←][→] to move, [↑] to shoot | [M] to toggle audio | [R] to restart 🎮
+        </div>
+    </div>
+
+    <!-- Background Audio -->
+    <audio id="backgroundAudio" loop>
+        <source src="assets/audio.wav" type="audio/wav">
+        Your browser does not support the audio element.
+    </audio>
+
+    <script>
+        class Game {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.modal = document.getElementById('modal');
+                this.gameOverDiv = document.getElementById('gameOver');
+                this.sacrificeDialog = document.getElementById('sacrificeDialog');
+                this.backgroundAudio = document.getElementById('backgroundAudio');
+                
+                this.init();
+                this.setupEventListeners();
+                this.setupAudio();
+                this.start();
+            }
+            
+            init() {
+                // Game state
+                this.isRunning = false;
+                this.isPaused = false;
+                this.gameTime = 0;
+                this.upgradeOffered = false;
+                this.hasShield = false;
+                this.shieldDuration = 0;
+                this.maxShieldDuration = 360; // 6 seconds at 60fps
+                this.shieldHealth = 0;
+                this.maxShieldHealth = 100; // Shield can absorb 100 damage points
+                this.sacrificeMessageShown = false;
+                
+                // Game stats
+                this.health = 3;
+                this.xp = 0;
+                this.maxXP = 250; // Increased XP requirement
+                
+                // Synced movement for both players
+                this.syncedMovement = {
+                    left: false,
+                    right: false,
+                    shoot1: false,
+                    shoot2: false
+                };
+                
+                // Players
+                this.players = [
+                    {
+                        x: 200,
+                        y: 520,
+                        width: 40,
+                        height: 60,
+                        speed: 6, // Slightly faster
+                        exists: true,
+                        label: 'Player 1',
+                        lastShot: 0
+                    },
+                    {
+                        x: 560,
+                        y: 520,
+                        width: 40,
+                        height: 60,
+                        speed: 6,
+                        exists: true,
+                        label: 'Player 2',
+                        lastShot: 0
+                    }
+                ];
+                
+                // Game objects
+                this.bullets = [];
+                this.enemies = [];
+                this.enemySpawnTimer = 0;
+                this.enemySpawnRate = 45; // Much faster spawning (was 90)
+                
+                // Input
+                this.keys = {};
+            }
+            
+            setupEventListeners() {
+                // Keyboard input
+                window.addEventListener('keydown', (e) => {
+                    this.keys[e.key.toLowerCase()] = true;
+                    
+                    // Restart game
+                    if (e.key.toLowerCase() === 'r' && !this.isRunning) {
+                        this.restart();
+                    }
+                    
+                    // Toggle audio with 'M' key
+                    if (e.key.toLowerCase() === 'm') {
+                        this.toggleAudio();
+                    }
+                });
+                
+                window.addEventListener('keyup', (e) => {
+                    this.keys[e.key.toLowerCase()] = false;
+                });
+                
+                // Click to start audio (required for autoplay)
+                document.addEventListener('click', () => {
+                    this.playBackgroundAudio();
+                }, { once: true });
+                
+                // Modal buttons
+                document.getElementById('yesBtn').addEventListener('click', () => {
+                    this.handleUpgradeChoice(true);
+                });
+                
+                document.getElementById('noBtn').addEventListener('click', () => {
+                    this.handleUpgradeChoice(false);
+                });
+            }
+            
+            setupAudio() {
+                // Set audio properties
+                this.backgroundAudio.volume = 0.3; // Set volume to 30%
+                this.backgroundAudio.preload = 'auto';
+                
+                // Try to play audio (will be muted until user interaction)
+                this.playBackgroundAudio();
+            }
+            
+            playBackgroundAudio() {
+                // Modern browsers require user interaction before playing audio
+                this.backgroundAudio.play().catch(error => {
+                    console.log('Audio play failed:', error);
+                    // Audio will start after first user interaction
+                });
+            }
+            
+            toggleAudio() {
+                if (this.backgroundAudio.paused) {
+                    this.backgroundAudio.play();
+                    this.showGlowingMessage("🔊 AUDIO ON", 1000);
+                } else {
+                    this.backgroundAudio.pause();
+                    this.showGlowingMessage("🔇 AUDIO OFF", 1000);
+                }
+            }
+            
+            start() {
+                this.isRunning = true;
+                this.gameLoop();
+            }
+            
+            restart() {
+                this.gameOverDiv.style.display = 'none';
+                this.init();
+                this.start();
+            }
+            
+            gameLoop() {
+                if (!this.isRunning) return;
+                
+                if (!this.isPaused) {
+                    this.update();
+                }
+                this.render();
+                
+                requestAnimationFrame(() => this.gameLoop());
+            }
+            
+            update() {
+                this.gameTime++;
+                
+                // Check for upgrade modal after 20 seconds (1200 frames)
+                if (this.gameTime >= 1200 && !this.upgradeOffered) {
+                    this.showUpgradeModal();
+                    return;
+                }
+                
+                this.handleInput();
+                this.updateBullets();
+                this.updateEnemies();
+                this.spawnEnemies();
+                this.checkCollisions();
+                this.updateShield();
+                this.checkXPReset();
+            }
+            
+            handleInput() {
+                // Update synced movement
+                this.syncedMovement.left = this.keys['a'] || this.keys['arrowleft'];
+                this.syncedMovement.right = this.keys['d'] || this.keys['arrowright'];
+                this.syncedMovement.shoot1 = this.keys['w'];
+                this.syncedMovement.shoot2 = this.keys['arrowup'];
+                
+                // Player 1 movement (synced with Player 2 if both exist)
+                if (this.players[0].exists) {
+                    if (this.syncedMovement.left && this.players[0].x > 0) {
+                        this.players[0].x -= this.players[0].speed;
+                        // Sync Player 2 if exists
+                        if (this.players[1].exists && this.players[1].x > 0) {
+                            this.players[1].x -= this.players[1].speed;
+                        }
+                    }
+                    if (this.syncedMovement.right && this.players[0].x < this.canvas.width - this.players[0].width) {
+                        this.players[0].x += this.players[0].speed;
+                        // Sync Player 2 if exists
+                        if (this.players[1].exists && this.players[1].x < this.canvas.width - this.players[1].width) {
+                            this.players[1].x += this.players[1].speed;
+                        }
+                    }
+                    if (this.syncedMovement.shoot1) {
+                        this.shoot(0);
+                    }
+                }
+                
+                // Player 2 shooting (independent)
+                if (this.players[1].exists && this.syncedMovement.shoot2) {
+                    this.shoot(1);
+                }
+            }
+            
+            shoot(playerIndex) {
+                const player = this.players[playerIndex];
+                if (!player.exists) return;
+                
+                const now = this.gameTime;
+                if (now - player.lastShot > 12) { // Faster shooting
+                    this.bullets.push({
+                        x: player.x + player.width / 2 - 3,
+                        y: player.y,
+                        width: 6,
+                        height: 15,
+                        speed: 10 // Faster bullets
+                    });
+                    player.lastShot = now;
+                }
+            }
+            
+            updateBullets() {
+                for (let i = this.bullets.length - 1; i >= 0; i--) {
+                    const bullet = this.bullets[i];
+                    bullet.y -= bullet.speed;
+                    
+                    if (bullet.y + bullet.height < 0) {
+                        this.bullets.splice(i, 1);
+                    }
+                }
+            }
+            
+            spawnEnemies() {
+                this.enemySpawnTimer++;
+                if (this.enemySpawnTimer >= this.enemySpawnRate) {
+                    this.enemySpawnTimer = 0;
+                    
+                    // Sometimes spawn multiple enemies
+                    const spawnCount = Math.random() < 0.3 ? 2 : 1;
+                    
+                    for (let i = 0; i < spawnCount; i++) {
+                        this.enemies.push({
+                            x: Math.random() * (this.canvas.width - 35),
+                            y: -35,
+                            width: 35,
+                            height: 35,
+                            speed: 2 + Math.random() * 3 // Faster enemies
+                        });
+                    }
+                }
+            }
+            
+            updateEnemies() {
+                for (let i = this.enemies.length - 1; i >= 0; i--) {
+                    const enemy = this.enemies[i];
+                    enemy.y += enemy.speed;
+                    
+                    if (enemy.y > this.canvas.height) {
+                        this.enemies.splice(i, 1);
+                    }
+                }
+            }
+            
+            checkCollisions() {
+                // Bullet vs Enemy
+                for (let i = this.bullets.length - 1; i >= 0; i--) {
+                    const bullet = this.bullets[i];
+                    
+                    for (let j = this.enemies.length - 1; j >= 0; j--) {
+                        const enemy = this.enemies[j];
+                        
+                        if (this.isColliding(bullet, enemy)) {
+                            this.bullets.splice(i, 1);
+                            this.enemies.splice(j, 1);
+                            this.addXP();
+                            break;
+                        }
+                    }
+                }
+                
+                // Enemy vs Player
+                for (let i = this.enemies.length - 1; i >= 0; i--) {
+                    const enemy = this.enemies[i];
+                    
+                    for (let player of this.players) {
+                        if (player.exists && this.isColliding(enemy, player)) {
+                            this.enemies.splice(i, 1);
+                            this.handlePlayerDamage();
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            isColliding(rect1, rect2) {
+                return rect1.x < rect2.x + rect2.width &&
+                       rect1.x + rect1.width > rect2.x &&
+                       rect1.y < rect2.y + rect2.height &&
+                       rect1.y + rect1.height > rect2.y;
+            }
+            
+            addXP() {
+                let xpGain;
+                if (this.hasShield && this.shieldDuration > 0) {
+                    xpGain = 8 + Math.floor(Math.random() * 17); // 8-25 XP with shield
+                } else {
+                    xpGain = 3 + Math.floor(Math.random() * 5); // 3-7 XP normally
+                }
+                
+                this.xp = Math.min(this.xp + xpGain, this.maxXP);
+            }
+            
+            handlePlayerDamage() {
+                // Check if shield is active and has health
+                if (this.hasShield && this.shieldHealth > 0) {
+                    // Shield absorbs damage
+                    const damage = 20; // Each enemy hit does 20 damage to shield
+                    this.shieldHealth = Math.max(0, this.shieldHealth - damage);
+                    
+                    // If shield is depleted, remove it
+                    if (this.shieldHealth <= 0) {
+                        this.hasShield = false;
+                        this.shieldDuration = 0;
+                        // Restore Player 2 when shield is destroyed
+                        this.players[1].exists = true;
+                        this.players[1].x = 560;
+                        this.showGlowingMessage("🛡️ SHIELD DESTROYED! PLAYER 2 RESTORED! 🛡️", 3000);
+                    } else {
+                        this.showGlowingMessage("🛡️ SHIELD ABSORBED DAMAGE! 🛡️", 1000);
+                    }
+                } else {
+                    // No shield or shield depleted, take normal damage
+                    this.takeDamage();
+                }
+            }
+            
+            takeDamage() {
+                this.health--;
+                if (this.health <= 0) {
+                    this.gameOver();
+                }
+            }
+            
+            updateShield() {
+                if (this.hasShield && this.shieldDuration > 0) {
+                    this.shieldDuration--;
+                    if (this.shieldDuration <= 0) {
+                        this.hasShield = false;
+                        this.shieldHealth = 0;
+                        // Restore Player 2 when shield expires
+                        this.players[1].exists = true;
+                        this.players[1].x = 560;
+                        this.showGlowingMessage("🛡️ SHIELD EXPIRED! PLAYER 2 RESTORED! 🛡️", 3000);
+                    }
+                }
+            }
+            
+            checkXPReset() {
+                if (this.xp >= this.maxXP) {
+                    // Reset everything
+                    this.players[1].exists = true;
+                    this.players[1].x = 560;
+                    this.hasShield = false;
+                    this.shieldDuration = 0;
+                    this.shieldHealth = 0;
+                    this.xp = 0;
+                    this.upgradeOffered = false;
+                    this.sacrificeMessageShown = false;
+                    this.gameTime = 0;
+                }
+            }
+            
+            showUpgradeModal() {
+                this.modal.style.display = 'block';
+                this.isPaused = true;
+            }
+            
+            handleUpgradeChoice(acceptUpgrade) {
+                this.modal.style.display = 'none';
+                this.upgradeOffered = true;
+                
+                if (acceptUpgrade) {
+                    // Show sacrifice dialog first
+                    this.showSacrificeDialog();
+                    
+                    // Then apply the upgrade after a short delay
+                    setTimeout(() => {
+                        this.players[1].exists = false;
+                        this.hasShield = true;
+                        this.shieldDuration = this.maxShieldDuration;
+                        this.shieldHealth = this.maxShieldHealth; // Full shield health
+                        this.sacrificeMessageShown = true;
+                        this.showGlowingMessage("⚡ POWER UPGRADED! SHIELD ACTIVATED! ⚡", 3000);
+                    }, 1000);
+                } else {
+                    this.showGlowingMessage("❌ UPGRADE DECLINED", 2000);
+                    this.isPaused = false;
+                }
+            }
+            
+            showGlowingMessage(text, duration = 3000) {
+                const msgDiv = document.createElement('div');
+                msgDiv.innerHTML = text.replace('\n', '<br>');
+                msgDiv.className = 'glow-text';
+                
+                document.getElementById('gameContainer').appendChild(msgDiv);
+                
+                setTimeout(() => {
+                    if (msgDiv.parentNode) {
+                        msgDiv.parentNode.removeChild(msgDiv);
+                    }
+                }, duration);
+            }
+            
+            showSacrificeDialog() {
+                this.sacrificeDialog.style.display = 'block';
+                this.isPaused = true;
+                
+                // Auto-hide after 3 seconds
+                setTimeout(() => {
+                    this.sacrificeDialog.style.display = 'none';
+                    this.isPaused = false;
+                }, 3000);
+            }
+            
+            gameOver() {
+                this.isRunning = false;
+                this.gameOverDiv.style.display = 'block';
+            }
+            
+            render() {
+                // Clear canvas with slight glow effect
+                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.95)';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                this.renderUI();
+                this.renderPlayers();
+                this.renderBullets();
+                this.renderEnemies();
+                this.renderShield();
+            }
+            
+            renderUI() {
+                // XP Bar with cyan glow
+                const xpBarWidth = 250;
+                const xpProgress = (this.xp / this.maxXP) * xpBarWidth;
+                
+                // Background
+                this.ctx.fillStyle = '#002222';
+                this.ctx.fillRect(20, 20, xpBarWidth, 30);
+                
+                // Progress fill with gradient
+                const gradient = this.ctx.createLinearGradient(20, 20, 20 + xpProgress, 50);
+                gradient.addColorStop(0, '#00ffff');
+                gradient.addColorStop(0.5, '#40e0d0');
+                gradient.addColorStop(1, '#00bfff');
+                this.ctx.fillStyle = gradient;
+                this.ctx.fillRect(20, 20, xpProgress, 30);
+                
+                // Border with glow
+                this.ctx.strokeStyle = '#00ffff';
+                this.ctx.lineWidth = 2;
+                this.ctx.shadowBlur = 10;
+                this.ctx.shadowColor = '#00ffff';
+                this.ctx.strokeRect(20, 20, xpBarWidth, 30);
+                this.ctx.shadowBlur = 0;
+                
+                // XP Text with glow
+                this.ctx.fillStyle = '#00ffff';
+                this.ctx.font = 'bold 16px Courier New';
+                this.ctx.shadowBlur = 5;
+                this.ctx.shadowColor = '#00ffff';
+                this.ctx.fillText(`XP: ${this.xp}/${this.maxXP}`, 25, 40);
+                this.ctx.shadowBlur = 0;
+                
+                // Health Hearts with enhanced glow
+                for (let i = 0; i < 3; i++) {
+                    const x = this.canvas.width - 160 + i * 45;
+                    const y = 20;
+                    
+                    if (i < this.health) {
+                        this.ctx.fillStyle = '#ff0044';
+                        this.ctx.shadowBlur = 8;
+                        this.ctx.shadowColor = '#ff0044';
+                        this.drawHeart(x, y);
+                        this.ctx.shadowBlur = 0;
+                    } else {
+                        this.ctx.strokeStyle = '#440011';
+                        this.ctx.lineWidth = 2;
+                        this.drawHeartOutline(x, y);
+                    }
+                }
+                
+                // Health Label
+                this.ctx.fillStyle = '#ff0044';
+                this.ctx.font = 'bold 16px Courier New';
+                this.ctx.shadowBlur = 5;
+                this.ctx.shadowColor = '#ff0044';
+                this.ctx.fillText('HEALTH', this.canvas.width - 160, 70);
+                this.ctx.shadowBlur = 0;
+                
+                // Shield Health Display
+                if (this.hasShield && this.shieldDuration > 0) {
+                    const shieldBarWidth = 200;
+                    const shieldProgress = (this.shieldHealth / this.maxShieldHealth) * shieldBarWidth;
+                    
+                    // Shield background
+                    this.ctx.fillStyle = '#001122';
+                    this.ctx.fillRect(20, 70, shieldBarWidth, 25);
+                    
+                    // Shield progress fill with color based on health
+                    let shieldColor;
+                    const healthPercent = this.shieldHealth / this.maxShieldHealth;
+                    if (healthPercent > 0.6) {
+                        shieldColor = '#00ffff';
+                    } else if (healthPercent > 0.3) {
+                        shieldColor = '#ffff00';
+                    } else {
+                        shieldColor = '#ff4444';
+                    }
+                    
+                    const gradient = this.ctx.createLinearGradient(20, 70, 20 + shieldProgress, 95);
+                    gradient.addColorStop(0, shieldColor);
+                    gradient.addColorStop(0.5, shieldColor + '80');
+                    gradient.addColorStop(1, shieldColor + '40');
+                    this.ctx.fillStyle = gradient;
+                    this.ctx.fillRect(20, 70, shieldProgress, 25);
+                    
+                    // Shield border with glow
+                    this.ctx.strokeStyle = shieldColor;
+                    this.ctx.lineWidth = 2;
+                    this.ctx.shadowBlur = 8;
+                    this.ctx.shadowColor = shieldColor;
+                    this.ctx.strokeRect(20, 70, shieldBarWidth, 25);
+                    this.ctx.shadowBlur = 0;
+                    
+                    // Shield text with glow
+                    this.ctx.fillStyle = shieldColor;
+                    this.ctx.font = 'bold 14px Courier New';
+                    this.ctx.shadowBlur = 5;
+                    this.ctx.shadowColor = shieldColor;
+                    this.ctx.fillText(`SHIELD: ${Math.round(this.shieldHealth)}/${this.maxShieldHealth}`, 25, 88);
+                    this.ctx.shadowBlur = 0;
+                }
+            }
+            
+            drawHeart(x, y) {
+                this.ctx.beginPath();
+                this.ctx.moveTo(x + 15, y + 8);
+                this.ctx.bezierCurveTo(x + 15, y + 5, x + 10, y + 2, x + 7, y + 5);
+                this.ctx.bezierCurveTo(x + 2, y + 2, x, y + 5, x, y + 8);
+                this.ctx.bezierCurveTo(x, y + 12, x + 15, y + 20, x + 15, y + 20);
+                this.ctx.bezierCurveTo(x + 15, y + 20, x + 30, y + 12, x + 30, y + 8);
+                this.ctx.bezierCurveTo(x + 30, y + 5, x + 28, y + 2, x + 23, y + 5);
+                this.ctx.bezierCurveTo(x + 20, y + 2, x + 15, y + 5, x + 15, y + 8);
+                this.ctx.fill();
+            }
+            
+            drawHeartOutline(x, y) {
+                this.ctx.beginPath();
+                this.ctx.moveTo(x + 15, y + 8);
+                this.ctx.bezierCurveTo(x + 15, y + 5, x + 10, y + 2, x + 7, y + 5);
+                this.ctx.bezierCurveTo(x + 2, y + 2, x, y + 5, x, y + 8);
+                this.ctx.bezierCurveTo(x, y + 12, x + 15, y + 20, x + 15, y + 20);
+                this.ctx.bezierCurveTo(x + 15, y + 20, x + 30, y + 12, x + 30, y + 8);
+                this.ctx.bezierCurveTo(x + 30, y + 5, x + 28, y + 2, x + 23, y + 5);
+                this.ctx.bezierCurveTo(x + 20, y + 2, x + 15, y + 5, x + 15, y + 8);
+                this.ctx.stroke();
+            }
+            
+            renderPlayers() {
+                this.ctx.font = 'bold 14px Courier New';
+                
+                for (let i = 0; i < this.players.length; i++) {
+                    const player = this.players[i];
+                    if (player.exists) {
+                        // Player glow effect
+                        this.ctx.fillStyle = i === 0 ? '#0088ff' : '#ff8800';
+                        this.ctx.shadowBlur = 10;
+                        this.ctx.shadowColor = i === 0 ? '#0088ff' : '#ff8800';
+                        this.ctx.fillRect(player.x, player.y, player.width, player.height);
+                        this.ctx.shadowBlur = 0;
+                        
+                        // Player label with glow
+                        this.ctx.fillStyle = '#ffffff';
+                        this.ctx.shadowBlur = 5;
+                        this.ctx.shadowColor = i === 0 ? '#0088ff' : '#ff8800';
+                        this.ctx.fillText(player.label, player.x - 5, player.y - 10);
+                        this.ctx.shadowBlur = 0;
+                    }
+                }
+            }
+            
+            renderBullets() {
+                this.ctx.fillStyle = '#00ffff';
+                this.ctx.shadowBlur = 8;
+                this.ctx.shadowColor = '#00ffff';
+                for (let bullet of this.bullets) {
+                    this.ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
+                }
+                this.ctx.shadowBlur = 0;
+            }
+            
+            renderEnemies() {
+                this.ctx.fillStyle = '#ff00ff';
+                this.ctx.shadowBlur = 12;
+                this.ctx.shadowColor = '#ff00ff';
+                
+                for (let enemy of this.enemies) {
+                    // Draw triangle with enhanced glow
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(enemy.x + enemy.width / 2, enemy.y);
+                    this.ctx.lineTo(enemy.x, enemy.y + enemy.height);
+                    this.ctx.lineTo(enemy.x + enemy.width, enemy.y + enemy.height);
+                    this.ctx.closePath();
+                    this.ctx.fill();
+                }
+                this.ctx.shadowBlur = 0;
+            }
+            
+            renderShield() {
+                if (this.hasShield && this.shieldDuration > 0 && this.players[0].exists) {
+                    const player = this.players[0];
+                    const centerX = player.x + player.width / 2;
+                    const shieldY = player.y - 25;
+                    
+                    // Calculate shield health percentage and visual effects
+                    const healthPercent = this.shieldHealth / this.maxShieldHealth;
+                    const opacity = Math.max(0.4, this.shieldDuration / this.maxShieldDuration);
+                    const pulseIntensity = Math.sin(this.gameTime * 0.3) * 0.3 + 0.7;
+                    
+                    // Determine shield color based on health
+                    let shieldColor, glowColor;
+                    if (healthPercent > 0.6) {
+                        shieldColor = '#00ffff'; // Cyan for healthy shield
+                        glowColor = '#00ffff';
+                    } else if (healthPercent > 0.3) {
+                        shieldColor = '#ffff00'; // Yellow for damaged shield
+                        glowColor = '#ffff00';
+                    } else {
+                        shieldColor = '#ff4444'; // Red for critical shield
+                        glowColor = '#ff4444';
+                    }
+                    
+                    // Outer glow
+                    this.ctx.strokeStyle = `rgba(${this.hexToRgb(glowColor)}, ${opacity * pulseIntensity * 0.3})`;
+                    this.ctx.lineWidth = 12;
+                    this.ctx.shadowBlur = 20;
+                    this.ctx.shadowColor = glowColor;
+                    this.ctx.beginPath();
+                    this.ctx.arc(centerX, shieldY, 45, Math.PI * 0.15, Math.PI * 0.85, false);
+                    this.ctx.stroke();
+                    
+                    // Main shield
+                    this.ctx.strokeStyle = `rgba(${this.hexToRgb(shieldColor)}, ${opacity * pulseIntensity})`;
+                    this.ctx.lineWidth = 6;
+                    this.ctx.shadowBlur = 15;
+                    this.ctx.beginPath();
+                    this.ctx.arc(centerX, shieldY, 40, Math.PI * 0.2, Math.PI * 0.8, false);
+                    this.ctx.stroke();
+                    
+                    // Inner core
+                    this.ctx.strokeStyle = `rgba(255, 255, 255, ${opacity * pulseIntensity})`;
+                    this.ctx.lineWidth = 2;
+                    this.ctx.shadowBlur = 10;
+                    this.ctx.beginPath();
+                    this.ctx.arc(centerX, shieldY, 35, Math.PI * 0.25, Math.PI * 0.75, false);
+                    this.ctx.stroke();
+                    
+                    this.ctx.shadowBlur = 0;
+                }
+            }
+            
+            hexToRgb(hex) {
+                const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+                return result ? 
+                    `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}` : 
+                    '0, 255, 255';
+            }
+        }
+        
+        // Start the game
+        let game;
+        window.addEventListener('load', () => {
+            game = new Game();
+        });
+    </script>
+</body>
+</html>
